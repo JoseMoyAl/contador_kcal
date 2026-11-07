@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#d9f1f7">
+  <title>Contador kcal</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg:#f4f8fb; --grad:#d9f1f7; --surface:#ffffff; --surface-2:#eaf1fb; --border:#e3e8ee;
+      --text:#10213f; --text-2:#6b7686; --text-3:#9aa4b2;
+      --blue:#3a6fd8; --blue-soft:#e6eefb;
+      --danger:#d64545; --warn:#d98a1f; --warn-soft:#fdf3e1; --bad-soft:#fbe5e5; --good:#2f9e6b; --good-soft:#e1f5ee;
+      --ring-track:#dde4ec; --radius:20px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#12161c; --grad:#1b2a36; --surface:#1d232b; --surface-2:#252d38; --border:#2c3541;
+        --text:#eef2f7; --text-2:#a3adba; --text-3:#6f7a89;
+        --blue:#6f9cf0; --blue-soft:#243452;
+        --danger:#f08a8a; --warn:#f0b45f; --warn-soft:#3d2e14; --bad-soft:#3b2326; --good:#6fd1a2; --good-soft:#17382b;
+        --ring-track:#2f3844;
+      }
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    [hidden] { display:none !important; }
+    html { background:var(--bg); }
+    body {
+      margin:0; min-height:100vh; color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:linear-gradient(180deg,var(--grad) 0,var(--bg) 340px) no-repeat, var(--bg);
+    }
+    .app {
+      max-width:480px; margin:0 auto; padding:16px;
+      padding-top:calc(env(safe-area-inset-top,0px) + 12px);
+      padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));
+    }
+    .view { display:none; }
+    .view.active { display:block; }
+    h1 { font-size:26px; font-weight:800; margin:4px 0 12px; }
+    h2 { font-size:20px; font-weight:800; margin:0; }
+    h3 { font-size:18px; font-weight:800; margin:0 0 12px; }
+    input, select, button { font-family:inherit; font-size:16px; color:var(--text); }
+    input, select {
+      width:100%; padding:11px 12px; background:var(--surface);
+      border:1px solid var(--border); border-radius:12px; margin-top:4px;
+    }
+    button { cursor:pointer; border:none; background:none; }
+    button:active { transform:scale(.97); }
+    label { font-size:13px; color:var(--text-2); display:block; margin-top:10px; }
+    .hint { font-size:12px; color:var(--text-3); margin:6px 0 0; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+    .card-title { font-size:15px; font-weight:700; margin:0 0 10px; }
+    .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .grid2 .card { margin-bottom:0; }
+    .grid4 { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    .grid4 label { margin-top:4px; font-size:11px; }
+    .center { text-align:center; }
+    .section-head { display:flex; justify-content:space-between; align-items:center; margin:22px 0 10px; }
+    .pill { font-size:14px; font-weight:700; color:var(--blue); background:var(--blue-soft); padding:5px 12px; border-radius:14px; }
+
+    .daybar { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .day-label { font-size:15px; color:var(--text-2); font-weight:600; }
+    .arrows { display:flex; gap:6px; }
+    .arrow { width:34px; height:34px; border-radius:50%; background:var(--surface); border:1px solid var(--border); font-size:20px; line-height:1; color:var(--text); }
+    .arrow:disabled { opacity:.35; }
+    .weekstrip { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px; }
+    .day { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 0 7px; border-radius:16px; background:var(--surface); border:1px solid var(--border); }
+    .day .dl { font-size:11px; color:var(--text-3); }
+    .day .dn { font-size:17px; font-weight:700; }
+    .day .dot { width:5px; height:5px; border-radius:50%; background:transparent; }
+    .day .dot.on { background:var(--blue); }
+    .day.today { border-color:var(--blue); }
+    .day.sel { background:var(--blue); border-color:var(--blue); color:#fff; }
+    .day.sel .dl { color:rgba(255,255,255,.8); }
+    .day.sel .dot.on { background:#fff; }
+    .day:disabled { opacity:.35; }
+
+    .goal-line { font-size:14px; color:var(--text-2); margin:8px 0 0; }
+    .wk-label { font-size:13px; color:var(--text-2); margin:10px 0 0; }
+    .wk-num { font-size:20px; font-weight:800; margin:2px 0 0; }
+    .over { color:var(--danger) !important; }
+
+    .meal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px; overflow:hidden; }
+    .meal-head { display:flex; align-items:center; gap:12px; padding:14px 16px; }
+    .meal-ico { font-size:26px; width:36px; text-align:center; }
+    .meal-info { flex:1; }
+    .meal-name { font-weight:800; font-size:16px; }
+    .meal-sub { font-size:14px; color:var(--text-2); margin-top:2px; }
+    .meal-sub b { color:var(--text); font-size:16px; }
+    .plus { width:44px; height:44px; border-radius:50%; background:var(--blue-soft); color:var(--blue); font-size:28px; line-height:1; flex:none; }
+    .items { border-top:1px solid var(--border); }
+    .item { display:flex; justify-content:space-between; align-items:center; padding:10px 8px 10px 16px; }
+    .item + .item { border-top:1px solid var(--border); }
+    .item-name { font-weight:600; }
+    .item-sub { font-size:13px; color:var(--text-3); }
+    .more { font-size:22px; color:var(--text-3); padding:6px 12px; }
+
+    .peso-wrap { display:flex; align-items:center; gap:12px; }
+    .peso-left { min-width:110px; }
+    .peso-big { font-size:32px; font-weight:800; }
+    .peso-big .unit { font-size:15px; font-weight:700; }
+    .peso-chart { flex:1; min-width:0; }
+    .badge { display:inline-block; margin-top:8px; padding:4px 10px; border-radius:12px; font-size:13px; font-weight:700; background:var(--blue-soft); color:var(--blue); }
+    .badge.good { background:var(--good-soft); color:var(--good); }
+    .badge.bad { background:var(--bad-soft); color:var(--danger); }
+
+    .hist-row { display:flex; justify-content:space-between; align-items:center; font-size:14px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .hist-row:last-child { border-bottom:none; }
+    .hist-date { color:var(--text-2); }
+    .del { color:var(--danger); cursor:pointer; padding:4px 8px; font-size:16px; }
+
+    .btn-primary { width:100%; margin-top:14px; padding:13px; border-radius:14px; background:var(--blue); color:#fff; font-weight:700; }
+    .btn-danger { width:100%; margin-top:10px; padding:13px; border-radius:14px; border:1px solid var(--danger); color:var(--danger); font-weight:700; }
+    .btn-soft { flex:1; padding:12px; border-radius:14px; background:var(--surface-2); font-weight:600; }
+    .btn-pair { display:flex; gap:8px; }
+    .row2 { display:flex; gap:8px; }
+    .row2 input:first-child { flex:2; }
+    .row2 input:last-child { flex:1; }
+
+    .food-list { margin-top:12px; max-height:42vh; overflow-y:auto; }
+    .food-row { width:100%; display:flex; justify-content:space-between; padding:13px 4px; border-bottom:1px solid var(--border); text-align:left; font-size:15px; }
+    .food-row .fk { color:var(--text-2); }
+    details.newfood { margin-top:14px; }
+    details.newfood summary { color:var(--blue); font-weight:700; cursor:pointer; padding:6px 0; }
+
+    .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:20; }
+    .sheet {
+      position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
+      max-height:88vh; overflow-y:auto; z-index:30; background:var(--surface);
+      border-radius:24px 24px 0 0; padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));
+      box-shadow:0 -8px 30px rgba(0,0,0,.18);
+    }
+
+    .imc-grid { display:grid; gap:8px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .imc-top { display:flex; align-items:baseline; gap:10px; margin-top:16px; }
+    .imc-num { font-size:40px; font-weight:800; line-height:1; }
+    .imc-cat { font-size:18px; font-weight:800; }
+
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { padding:10px 16px; border-radius:14px; background:var(--surface-2); font-weight:700; font-size:15px; color:var(--text-2); }
+    .chip.active { background:var(--blue); color:#fff; }
+    .notice { background:var(--warn-soft); border:1px solid var(--warn); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; font-size:13px; line-height:1.5; }
+    .notice.bad { background:var(--bad-soft); border-color:var(--danger); }
+    .notice p { margin:6px 0 0; }
+    .btn-primary:disabled, .btn-soft:disabled { opacity:.4; }
+    details.info { border-top:1px solid var(--border); padding:10px 0; }
+    details.info summary { font-weight:700; font-size:14px; cursor:pointer; }
+    details.info p, details.info li { font-size:13px; color:var(--text-2); line-height:1.5; margin:8px 0 0; }
+    details.info ul { margin:6px 0 0; padding-left:18px; }
+
+    .nav {
+      position:fixed; bottom:0; left:0; right:0; z-index:10; background:var(--surface);
+      border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom,0px);
+    }
+    .nav-inner { max-width:480px; margin:0 auto; display:flex; }
+    .nav button { flex:1; padding:10px 0 8px; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:12px; font-weight:600; color:var(--text-3); }
+    .nav button.active { color:var(--blue); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ DIARIO ============ -->
+  <section id="view-diario" class="view active">
+    <h1>Contador kcal</h1>
+    <div class="daybar">
+      <span id="day-label" class="day-label">Hoy</span>
+      <div class="arrows">
+        <button id="wk-prev" class="arrow" aria-label="Semana anterior">‹</button>
+        <button id="wk-next" class="arrow" aria-label="Semana siguiente">›</button>
+      </div>
+    </div>
+    <div class="weekstrip" id="weekstrip"></div>
+
+    <div class="section-head"><h2>Presupuesto diario</h2></div>
+    <div class="grid2">
+      <div class="card center" id="card-day"></div>
+      <div class="card center" id="card-week"></div>
+    </div>
+
+    <div class="section-head"><h2>Ingesta</h2><span class="pill" id="total-intake">0 kcal</span></div>
+    <div id="meals"></div>
+
+    <div class="section-head"><h2>Peso</h2></div>
+    <div class="card" id="card-peso"></div>
+  </section>
+
+  <!-- ============ TENDENCIAS ============ -->
+  <section id="view-tend" class="view">
+    <h1>Tendencias</h1>
+    <div class="card">
+      <p class="card-title">Últimos 14 días vs tu límite</p>
+      <div id="bars-box"></div>
+      <p class="hint" id="bars-stats"></p>
+    </div>
+    <div class="card">
+      <p class="card-title">Últimos 7 días</p>
+      <div id="avg-box"></div>
+      <div id="hist-list"></div>
+    </div>
+    <div class="card">
+      <p class="card-title">Peso</p>
+      <div id="peso-chart"></div>
+      <div id="peso-hist" style="margin-top:8px;"></div>
+    </div>
+    <div class="card">
+      <p class="card-title">Calculadora de IMC y gasto calórico</p>
+      <div class="imc-grid">
+        <label style="margin-top:0;">Sexo
+          <select id="imc-sex"><option value="">Elige</option><option value="m">Hombre</option><option value="f">Mujer</option></select>
+        </label>
+        <label style="margin-top:0;">Edad (años)<input id="imc-age" type="number" inputmode="numeric" placeholder="20"></label>
+        <label>Peso (kg)<input id="imc-kg" type="number" step="0.1" inputmode="decimal" placeholder="70"></label>
+        <label>Altura (cm)<input id="imc-cm" type="number" inputmode="numeric" placeholder="170"></label>
+      </div>
+      <label>Actividad
+        <select id="imc-act">
+          <option value="1.2">Sedentario (menos de 5,000 pasos)</option>
+          <option value="1.55">Moderado (5,000 a 10,000 pasos)</option>
+          <option value="1.725">Alto (más de 10,000 pasos)</option>
+        </select>
+      </label>
+      <p class="hint">Solo mide pasos: el gimnasio no cuenta aquí, así que puede quedarse corto si entrenas fuerte.</p>
+      <div id="imc-result"></div>
+      <p class="hint" style="margin-top:12px;">El IMC es para adultos (18+) y solo usa peso y altura: la edad y la actividad no lo cambian, se usan para el gasto calórico. No distingue músculo de grasa, así que si entrenas fuerza puede salir más alto de lo real. El peso se llena con tu último registro; tus datos se guardan solos.</p>
+    </div>
+  </section>
+
+  <!-- ============ AYUNO ============ -->
+  <section id="view-ayuno" class="view">
+    <h1>Ayuno</h1>
+    <div id="ay-gate"></div>
+    <div class="card center" id="ay-main"></div>
+    <div class="card" id="ay-plan"></div>
+    <div class="card" id="ay-hist"></div>
+    <div class="card">
+      <p class="card-title">Lo que dice la evidencia</p>
+      <details class="info" open>
+        <summary>Resumen honesto</summary>
+        <ul>
+          <li>Para bajar de peso pesa más cuánto recortas calorías que a qué hora comes. Una revisión de 167 ensayos con unas 12,000 personas (Nutrition Reviews, 2026) llegó a esa conclusión, y vio que en los planes de ayuno parte de la pérdida rebotó después de 12 semanas.</li>
+          <li>El ayuno intermitente rinde parecido a recortar calorías todos los días. Su ventaja real es que a algunas personas les resulta más fácil de sostener.</li>
+          <li>En el ensayo TREAT (JAMA Internal Medicine, 2020; 116 personas, 16:8 de 12 a 8 pm) no se bajó más peso que comiendo normal, y en el subgrupo medido cerca del 65 % de lo perdido fue masa magra, el doble de lo habitual (20 a 30 %). Los autores lo atribuyen en parte a comer menos proteína al saltarse el desayuno. Es un solo ensayo.</li>
+          <li>Un estudio observacional preliminar (AHA, 2024) asoció comer en menos de 8 horas con más muerte cardiovascular. Es una asociación, basada en recuerdos de solo 2 días de comida, y fue muy criticado. No prueba que dañe, pero tampoco da motivo para ir a ventanas tan estrechas.</li>
+          <li>¿Comer temprano o tarde? Hay resultados mixtos: algunos ensayos favorecen una ventana temprana (por ejemplo, de 7:00 a 15:00) para peso, presión y glucosa, pero la ventana tardía suele sostenerse mejor. Elige la que sí puedas cumplir.</li>
+        </ul>
+      </details>
+      <details class="info">
+        <summary>Para quién NO es</summary>
+        <p>No ayunes, o consulta antes a tu médico, si estás embarazada o en lactancia, tienes diabetes y tomas medicación (riesgo de hipoglucemia), has tenido un trastorno de la conducta alimentaria, eres menor de 18 años, tienes bajo peso o una enfermedad crónica.</p>
+        <p>Algunos estudios asocian el ayuno con más atracones en personas vulnerables. Si el ayuno te genera ansiedad por la comida, culpa o atracones, déjalo y habla con tu nutriólogo.</p>
+      </details>
+      <details class="info">
+        <summary>Si entrenas fuerza</summary>
+        <ul>
+          <li>Con entrenamiento de fuerza, la masa magra suele mantenerse bajo ayuno intermitente. Lo que más importa es la proteína total del día y las calorías, más que el horario exacto.</li>
+          <li>Una referencia común para ganar o mantener músculo es alrededor de 1.7 g de proteína por kg de peso al día, repartida en 2 o 3 comidas dentro de tu ventana.</li>
+          <li>Rompe el ayuno con una comida que tenga proteína, y entrena dentro de tu ventana de comida si te sientes mal en ayunas.</li>
+          <li>Tu límite de kcal sigue siendo el mismo: ayunar no te da calorías extra para comer más en la ventana.</li>
+        </ul>
+      </details>
+      <details class="info">
+        <summary>Etapas durante el ayuno (aproximadas)</summary>
+        <p>0 a 4 h: estás digiriendo y absorbiendo. 4 a 12 h: baja la insulina y el hígado usa su glucógeno, la reserva de azúcar. Desde las 12 a 16 h: se usa más grasa como combustible y las cetonas suben poco al principio. Los tiempos cambian mucho de una persona a otra.</p>
+        <p>Sobre la autofagia ("limpieza celular"): se cree que aumenta con el ayuno, pero en humanos casi no se puede medir y no hay horas exactas respaldadas. Desconfía de las tablas que las prometen.</p>
+      </details>
+      <p class="hint" style="margin-top:10px;">Basado en revisiones y ensayos publicados (Nutrition Reviews 2026, JAMA Internal Medicine 2020, ensayos de ventana temprana), un resumen preliminar de la AHA 2024 y guías de dietistas. No pude leer libros ni material de pago. Esto es información general, no consejo médico.</p>
+    </div>
+  </section>
+
+  <!-- ============ AJUSTES ============ -->
+  <section id="view-ajustes" class="view">
+    <h1>Ajustes</h1>
+
+    <div class="card">
+      <p class="card-title">Tu objetivo</p>
+      <label style="margin-top:0;">Límite de kcal diario
+        <input id="limite" type="number" placeholder="Ej. 2000">
+      </label>
+      <p class="hint">Coloca aquí las kcal netas de tu déficit (calculadas con tu nutriólogo). Todo se mide contra este límite.</p>
+
+      <label>Reparto del límite por comida (%)</label>
+      <div class="grid4">
+        <label>Desayuno<input id="pct-Desayuno" type="number" min="0"></label>
+        <label>Almuerzo<input id="pct-Almuerzo" type="number" min="0"></label>
+        <label>Cena<input id="pct-Cena" type="number" min="0"></label>
+        <label>Extra<input id="pct-Extra" type="number" min="0"></label>
+      </div>
+      <p class="hint" id="pct-warn"></p>
+
+      <div class="row2" style="margin-top:6px;">
+        <label style="flex:1;">Unidad de peso
+          <select id="unidad"><option value="kg">kg</option><option value="lb">lb</option></select>
+        </label>
+        <label style="flex:1;">Meta de peso
+          <input id="meta-peso" type="number" step="0.1" placeholder="Opcional" style="flex:none;">
+        </label>
+      </div>
+      <button id="save-goal" class="btn-primary">Guardar</button>
+      <p class="hint" id="save-msg"></p>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Mis alimentos</p>
+      <div class="row2">
+        <input id="newname" placeholder="Nombre (ej. Huevo cocido 1u)">
+        <input id="newkcal" type="number" placeholder="kcal">
+      </div>
+      <button id="savefood" class="btn-primary" style="margin-top:10px;">Guardar en lista</button>
+      <div id="foodlist" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">Respaldo</p>
+      <p class="hint" style="margin:0 0 10px;">Tus datos viven solo en este navegador. Exporta un respaldo antes de borrar Safari o cambiar de teléfono.</p>
+      <div class="btn-pair">
+        <button id="export" class="btn-soft">Exportar</button>
+        <button id="import-btn" class="btn-soft">Importar</button>
+      </div>
+      <input id="import-file" type="file" accept="application/json" style="display:none;">
+    </div>
+  </section>
+
+</div>
+
+<div id="backdrop" class="backdrop" hidden></div>
+<div id="sheet" class="sheet" hidden><div id="sheet-body"></div></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <button id="nav-diario" class="active" data-view="diario">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+      Diario
+    </button>
+    <button id="nav-ayuno" data-view="ayuno">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 3h6"/></svg>
+      Ayuno
+    </button>
+    <button id="nav-tend" data-view="tend">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
+      Tendencias
+    </button>
+    <button id="nav-ajustes" data-view="ajustes">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      Ajustes
+    </button>
+  </div>
+</nav>
+
+<script>
+  // ---------- Constantes ----------
+  const RETENTION_DAYS = 60;   // historial guardado (la medición del gasto necesita semanas de datos)
+  const EDIT_DAYS = 14;        // hasta cuántos días atrás se puede editar desde la franja semanal
+  const KG_TO_LB = 2.20462;
+  const MEALS = [
+    { k:"Desayuno", label:"Desayuno",     icon:"🌅" },
+    { k:"Almuerzo", label:"Almuerzo",     icon:"☀️" },
+    { k:"Cena",     label:"Cena",         icon:"🌙" },
+    { k:"Extra",    label:"Comida extra", icon:"🍎" },
+  ];
+  const DEFAULT_PCT = { Desayuno:30, Almuerzo:40, Cena:25, Extra:5 };
+  const DEFAULT_FOODS = [
+    {name:"Pan francés (1u)", kcal:277},
+    {name:"Huevo cocido (1u)", kcal:78},
+    {name:"Arroz cocido (100g)", kcal:130},
+    {name:"Pechuga pollo (100g)", kcal:165},
+    {name:"Banano (1u)", kcal:105},
+  ];
+  const round = n => Math.round(n);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const hoyStr = () => new Date().toDateString();
+  const TODAY = hoyStr();
+  const fmtFecha = s => new Date(s).toLocaleDateString("es", { weekday:"short", day:"numeric", month:"short" });
+  const emptyLog = () => ({ Desayuno:[], Almuerzo:[], Cena:[], Extra:[] });
+  const sumLog = l => { let t = 0; for (const m in l) l[m].forEach(f => t += f.kcal); return t; };
+  const startOfToday = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+  const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - RETENTION_DAYS); d.setHours(0,0,0,0); return d; })();
+  const editCutoff = (() => { const d = new Date(); d.setDate(d.getDate() - EDIT_DAYS); d.setHours(0,0,0,0); return d; })();
+
+  // ---------- Carga de estado ----------
+  let foods = JSON.parse(localStorage.getItem("foods")) || DEFAULT_FOODS.slice();
+  let historial = JSON.parse(localStorage.getItem("historial")) || {};
+  let pesos = JSON.parse(localStorage.getItem("pesos")) || {};
+
+  const diaGuardado = JSON.parse(localStorage.getItem("dia")) || {};
+  let log;
+  if (diaGuardado.fecha === TODAY && diaGuardado.log) {
+    log = diaGuardado.log;
+  } else {
+    if (diaGuardado.fecha && diaGuardado.log && !historial[diaGuardado.fecha]) {
+      historial[diaGuardado.fecha] = { kcal: round(sumLog(diaGuardado.log)), log: diaGuardado.log };
+      localStorage.setItem("historial", JSON.stringify(historial));
+    }
+    log = emptyLog();
+  }
+
+  // Limpieza automática: nada se acumula más allá de RETENTION_DAYS
+  (function limpiar() {
+    let cambiado = false;
+    for (const k in historial) { if (new Date(k) < cutoff) { delete historial[k]; cambiado = true; } }
+    if (cambiado) localStorage.setItem("historial", JSON.stringify(historial));
+  })();
+
+  const perfilRaw = JSON.parse(localStorage.getItem("perfil")) || {};
+  let perfil = {
+    limite: +perfilRaw.limite || 0,
+    pct: Object.assign({}, DEFAULT_PCT, perfilRaw.pct || {}),
+    unidad: perfilRaw.unidad === "lb" ? "lb" : "kg",
+    metaPeso: +perfilRaw.metaPeso || 0,   // siempre guardada en kg
+    alturaCm: +perfilRaw.alturaCm || 0,   // para la calculadora de IMC
+    sexo: perfilRaw.sexo === "m" || perfilRaw.sexo === "f" ? perfilRaw.sexo : "",
+    edad: +perfilRaw.edad || 0,
+    actividad: ["1.2", "1.55", "1.725"].includes(String(perfilRaw.actividad)) ? String(perfilRaw.actividad) : "1.55",
+  };
+  let goal = perfil.limite;
+  const savePerfil = () => localStorage.setItem("perfil", JSON.stringify(perfil));
+
+  let selectedDate = TODAY;
+  let weekOffset = 0;
+  let addMeal = "Desayuno";
+
+  // ---------- Utilidades de datos ----------
+  function ensureEntry(key) {
+    if (!historial[key]) historial[key] = { kcal: 0, log: emptyLog() };
+    const e = historial[key];
+    if (!e.log) {
+      e.log = emptyLog();
+      if (e.kcal) e.log.Extra.push({ name: "Registro anterior (sin detalle guardado)", kcal: e.kcal });
+    }
+    return e;
+  }
+  function viewLog(key) {
+    if (key === TODAY) return log;
+    if (historial[key]) return ensureEntry(key).log;
+    return emptyLog();
+  }
+  function kcalOf(key) {
+    if (key === TODAY) return sumLog(log);
+    const e = historial[key];
+    if (!e) return 0;
+    return e.log ? sumLog(e.log) : (e.kcal || 0);
+  }
+  function mutate(fn) {
+    const key = selectedDate;
+    const l = key === TODAY ? log : ensureEntry(key).log;
+    fn(l);
+    if (key !== TODAY) {
+      historial[key].kcal = round(sumLog(l));
+      localStorage.setItem("historial", JSON.stringify(historial));
+    }
+    render();
+  }
+  function persistir() {
+    localStorage.setItem("foods", JSON.stringify(foods));
+    localStorage.setItem("dia", JSON.stringify({ fecha: TODAY, log }));
+  }
+  function getMonday(d) {
+    const date = new Date(d);
+    const day = date.getDay();
+    date.setDate(date.getDate() + (day === 0 ? -6 : 1 - day));
+    date.setHours(0,0,0,0);
+    return date;
+  }
+  function weekDates(offset) {
+    const mon = getMonday(new Date());
+    mon.setDate(mon.getDate() + offset * 7);
+    return [0,1,2,3,4,5,6].map(i => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
+  }
+  function weekStats() {
+    const mon = getMonday(new Date()), now = new Date();
+    let consumed = 0, n = 0;
+    for (let d = new Date(mon); d <= now; d.setDate(d.getDate() + 1)) {
+      const k = kcalOf(d.toDateString());
+      if (k > 0) { consumed += k; n++; }
+    }
+    const goalTotal = goal * n;
+    return { consumed, n, goalTotal, deficit: goalTotal - consumed };
+  }
+  const toUnit = kg => perfil.unidad === "lb" ? kg * KG_TO_LB : kg;
+  const fromUnit = v => perfil.unidad === "lb" ? v / KG_TO_LB : v;
+  const fmtW = kg => toUnit(kg).toFixed(1);
+  const pesoKeysDesc = () => Object.keys(pesos).sort((a,b) => new Date(b) - new Date(a));
+
+  // ---------- Gráficos ----------
+  function ring(pct, r, sw, vb, colOverride) {
+    const C = 2 * Math.PI * r, gap = 6, seg = C / 5 - gap, c = vb / 2;
+    const dash = (Math.max(0, Math.min(100, pct)) / 100) * C;
+    const col = colOverride || (pct > 100 ? "var(--danger)" : "var(--blue)");
+    let s = '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" style="stroke:var(--ring-track)" stroke-width="'+sw+'" stroke-dasharray="'+seg+' '+gap+'" transform="rotate(-90 '+c+' '+c+')"/>';
+    if (dash > 0) s += '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" style="stroke:'+col+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+dash+' '+C+'" transform="rotate(-90 '+c+' '+c+')"/>';
+    return s;
+  }
+  // Siempre dibuja algo: sin datos, con 1 registro o con varios. Si hay meta, la línea apunta hacia ella.
+  function pesoChartSVG(points, W, H, labels) {
+    const P = 12;
+    const goalU = perfil.metaPeso ? toUnit(perfil.metaPeso) : null;
+    const vals = points.map(p => toUnit(p.kg));
+    const all = vals.slice(); if (goalU !== null) all.push(goalU);
+    let min = all.length ? Math.min(...all) : 0, max = all.length ? Math.max(...all) : 1;
+    if (min === max) { min -= 1; max += 1; }
+    const range = max - min;
+    const yOf = v => H - P - ((v - min) / range) * (H - 2*P);
+    const n = vals.length;
+    const xEnd = W - P;
+    const xLast = goalU !== null ? W - P - 26 : W - P;
+    const stepX = n > 1 ? (xLast - P) / (n - 1) : 0;
+    const coords = vals.map((v,i) => [P + i*stepX, yOf(v)]);
+    const startPt = n ? coords[n - 1] : [P, H / 2];
+    const endPt = goalU !== null ? [xEnd, yOf(goalU)] : [xEnd, startPt[1]];
+    const f = x => x.toFixed(1);
+    let out = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">';
+    // tramo discontinuo hacia la meta (o tenue hacia la derecha si no hay meta)
+    out += '<line x1="'+f(startPt[0])+'" y1="'+f(startPt[1])+'" x2="'+f(endPt[0])+'" y2="'+f(endPt[1])+'" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round" style="stroke:'+(goalU !== null ? 'var(--blue)' : 'var(--ring-track)')+'" opacity="'+(goalU !== null ? '.55' : '1')+'"/>';
+    // línea real
+    if (n >= 2) out += '<polyline points="'+coords.map(c => f(c[0])+','+f(c[1])).join(' ')+'" fill="none" style="stroke:var(--blue)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    // puntos
+    if (n) out += coords.map((c,i) => '<circle cx="'+f(c[0])+'" cy="'+f(c[1])+'" r="'+(i === n-1 ? 4.5 : 3)+'" style="fill:var(--blue)"/>').join('');
+    else out += '<circle cx="'+P+'" cy="'+f(H/2)+'" r="4.5" style="fill:var(--surface);stroke:var(--ring-track)" stroke-width="2.5"/>';
+    // bandera de la meta
+    if (goalU !== null) {
+      const gx = endPt[0], gy = endPt[1];
+      out += '<path d="M'+f(gx)+' '+f(gy+6)+' V'+f(gy-7)+' L'+f(gx+8)+' '+f(gy-4)+' L'+f(gx)+' '+f(gy-1)+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" style="stroke:var(--blue);fill:var(--blue)"/>';
+    }
+    out += '</svg>';
+    if (labels && n) out += '<div class="hist-row" style="font-size:12px;color:var(--text-3);border:none;padding:2px 0 0;"><span>'+min.toFixed(1)+' '+perfil.unidad+'</span><span>'+max.toFixed(1)+' '+perfil.unidad+'</span></div>';
+    return out;
+  }
+
+  // ---------- Hoja inferior (sheet) ----------
+  function openSheet(html) {
+    document.getElementById("sheet-body").innerHTML = html;
+    document.getElementById("sheet").hidden = false;
+    document.getElementById("backdrop").hidden = false;
+  }
+  function closeSheet() {
+    document.getElementById("sheet").hidden = true;
+    document.getElementById("backdrop").hidden = true;
+  }
+  document.getElementById("backdrop").onclick = closeSheet;
+
+  // ---------- Render: Diario ----------
+  function renderWeekStrip() {
+    const days = weekDates(weekOffset), start = startOfToday(), letters = ["L","M","M","J","V","S","D"];
+    document.getElementById("weekstrip").innerHTML = days.map((d,i) => {
+      const key = d.toDateString();
+      const disabled = d > start || d < editCutoff;
+      const cls = 'day' + (key === selectedDate ? ' sel' : '') + (key === TODAY ? ' today' : '');
+      return '<button class="'+cls+'"'+(disabled?' disabled':'')+' onclick="selectDay(\''+key+'\')"><span class="dl">'+letters[i]+'</span><span class="dn">'+d.getDate()+'</span><span class="dot'+(kcalOf(key)>0?' on':'')+'"></span></button>';
+    }).join("");
+    document.getElementById("wk-prev").disabled = weekOffset <= -2;
+    document.getElementById("wk-next").disabled = weekOffset >= 0;
+    document.getElementById("day-label").textContent = selectedDate === TODAY ? "Hoy" : fmtFecha(selectedDate);
+  }
+  window.selectDay = key => { selectedDate = key; render(); };
+  function shiftWeek(dir) {
+    const nuevo = Math.max(-2, Math.min(0, weekOffset + dir));
+    if (nuevo === weekOffset) return;
+    weekOffset = nuevo;
+    const days = weekDates(weekOffset), start = startOfToday();
+    for (let i = 6; i >= 0; i--) {
+      if (days[i] <= start && days[i] >= editCutoff) { selectedDate = days[i].toDateString(); break; }
+    }
+    render();
+  }
+  document.getElementById("wk-prev").onclick = () => shiftWeek(-1);
+  document.getElementById("wk-next").onclick = () => shiftWeek(1);
+
+  function renderBudget() {
+    const c = kcalOf(selectedDate), g = goal;
+    const pct = g ? c / g * 100 : 0, rem = g - c, over = g && rem < 0;
+    document.getElementById("card-day").innerHTML =
+      '<svg viewBox="0 0 160 160" style="width:100%;max-width:170px;display:block;margin:0 auto">' + ring(pct, 64, 13, 160)
+      + '<text x="80" y="72" text-anchor="middle" font-size="12" style="fill:var(--text-2)">' + (over ? "Excedido" : "Restante") + '</text>'
+      + '<text x="80" y="102" text-anchor="middle" font-size="32" font-weight="800" style="fill:' + (over ? "var(--danger)" : "var(--text)") + '">' + (g ? Math.abs(round(rem)) : "—") + '</text>'
+      + '<text x="80" y="120" text-anchor="middle" font-size="12" style="fill:var(--text-2)">kcal</text></svg>'
+      + '<p class="goal-line">' + (g ? 'Meta ' + g + ' kcal' : 'Define tu límite en Ajustes') + '</p>';
+
+    const w = weekStats(), wp = w.goalTotal ? w.consumed / w.goalTotal * 100 : 0;
+    let html = '<p class="card-title" style="margin-bottom:6px;">Semana</p>'
+      + '<svg viewBox="0 0 100 100" style="width:96px;display:block;margin:0 auto">' + ring(wp, 38, 9, 100)
+      + '<text x="50" y="56" text-anchor="middle" font-size="18" font-weight="800" style="fill:var(--text)">' + (w.goalTotal ? round(wp) + "%" : "—") + '</text></svg>';
+    if (w.n && g) {
+      html += '<p class="wk-label">' + (w.deficit >= 0 ? "Déficit" : "Superávit") + '</p>'
+        + '<p class="wk-num' + (w.deficit >= 0 ? '' : ' over') + '">' + Math.abs(round(w.deficit)) + ' kcal</p>'
+        + '<p class="hint">' + w.n + ' día(s) registrado(s)</p>';
+    } else {
+      html += '<p class="hint" style="margin-top:12px;">Sin registros esta semana</p>';
+    }
+    document.getElementById("card-week").innerHTML = html;
+    document.getElementById("total-intake").textContent = round(c) + " kcal";
+  }
+
+  function renderMeals() {
+    const l = viewLog(selectedDate);
+    document.getElementById("meals").innerHTML = MEALS.map(m => {
+      const items = l[m.k], eaten = sumLog({ x: items });
+      const budget = goal ? round(goal * (perfil.pct[m.k] || 0) / 100) : 0;
+      const over = goal && eaten > budget;
+      const rows = items.map((f,i) =>
+        '<div class="item"><div><div class="item-name">' + esc(f.name) + '</div><div class="item-sub">' + f.kcal + ' kcal</div></div>'
+        + '<button class="more" onclick="openItem(\'' + m.k + '\',' + i + ')" aria-label="Opciones">⋮</button></div>'
+      ).join("");
+      return '<div class="meal"><div class="meal-head"><span class="meal-ico">' + m.icon + '</span>'
+        + '<div class="meal-info"><div class="meal-name">' + m.label + '</div>'
+        + '<div class="meal-sub"><b class="' + (over ? "over" : "") + '">' + round(eaten) + '</b>' + (goal ? ' / ' + budget + ' kcal' : ' kcal') + '</div></div>'
+        + '<button class="plus" onclick="openAdd(\'' + m.k + '\')" aria-label="Agregar">+</button></div>'
+        + (rows ? '<div class="items">' + rows + '</div>' : '') + '</div>';
+    }).join("");
+  }
+
+  function renderPeso() {
+    const keys = pesoKeysDesc(), el = document.getElementById("card-peso"), u = perfil.unidad;
+    const plus = '<button class="plus" onclick="openPeso()" aria-label="Registrar peso">+</button>';
+    if (!keys.length) {
+      el.innerHTML = '<div class="peso-wrap"><div class="peso-left"><div class="peso-big">—</div>'
+        + (perfil.metaPeso ? '<p class="hint" style="margin:2px 0 0;">Meta: ' + fmtW(perfil.metaPeso) + ' ' + u + '</p>' : '<p class="hint">Sin registros</p>')
+        + '</div><div class="peso-chart">' + pesoChartSVG([], 140, 70, false) + '</div>' + plus + '</div>';
+      return;
+    }
+    const latest = pesos[keys[0]], first = pesos[keys[keys.length - 1]], diff = latest - first;
+    let cls = "";
+    if (perfil.metaPeso && diff !== 0) {
+      const want = perfil.metaPeso < first ? -1 : 1;
+      cls = diff * want > 0 ? " good" : " bad";
+    }
+    const badge = '<span class="badge' + cls + '">' + (diff < 0 ? "▼ " : diff > 0 ? "▲ " : "• ") + toUnit(Math.abs(diff)).toFixed(1) + '</span>';
+    const asc = keys.slice(0, 7).reverse().map(k => ({ kg: pesos[k] }));
+    el.innerHTML = '<div class="peso-wrap"><div class="peso-left"><div class="peso-big">' + fmtW(latest) + '<span class="unit"> ' + u + '</span></div>'
+      + (perfil.metaPeso ? '<p class="hint" style="margin:2px 0 0;">Meta: ' + fmtW(perfil.metaPeso) + ' ' + u + '</p>' : '')
+      + badge + '</div><div class="peso-chart">' + pesoChartSVG(asc, 140, 70, false) + '</div>' + plus + '</div>';
+  }
+
+  // ---------- Render: Tendencias ----------
+  // Barras de los últimos 14 días contra el límite
+  function renderBars() {
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+      days.push({ n: d.getDate(), key: d.toDateString(), kcal: kcalOf(d.toDateString()) });
+    }
+    const W = 300, H = 130, PL = 6, PR = 6, PT = 12, PB = 22;
+    const top = Math.max(goal ? goal * 1.15 : 0, ...days.map(x => x.kcal * 1.05), 100);
+    const slot = (W - PL - PR) / 14, bw = slot * 0.62, plotH = H - PT - PB;
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block">';
+    days.forEach((x,i) => {
+      const bx = PL + i * slot + (slot - bw) / 2;
+      const h = x.kcal > 0 ? Math.max(3, x.kcal / top * plotH) : 2;
+      const color = x.kcal <= 0 ? "var(--ring-track)" : (goal && x.kcal > goal ? "var(--danger)" : "var(--blue)");
+      svg += '<rect x="' + bx.toFixed(1) + '" y="' + (H - PB - h).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" style="fill:' + color + '"/>';
+      svg += '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="8" style="fill:var(--text-3)"' + (x.key === TODAY ? ' font-weight="700"' : '') + '>' + x.n + '</text>';
+    });
+    if (goal) {
+      const y = H - PB - goal / top * plotH;
+      svg += '<line x1="' + PL + '" x2="' + (W - PR) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke-width="1.5" stroke-dasharray="4 4" style="stroke:var(--text-2)"/>';
+      svg += '<text x="' + PL + '" y="' + (y - 3).toFixed(1) + '" font-size="9" style="fill:var(--text-2)">límite ' + goal + '</text>';
+    }
+    svg += '</svg>';
+    document.getElementById("bars-box").innerHTML = svg;
+    const reg = days.filter(x => x.kcal > 0), dentro = goal ? reg.filter(x => x.kcal <= goal).length : 0;
+    document.getElementById("bars-stats").textContent = !reg.length
+      ? "Aún no hay días registrados."
+      : goal ? "Dentro del límite: " + dentro + " de " + reg.length + " día(s) registrado(s). Las barras rojas pasaron el límite."
+             : "Define tu límite en Ajustes para ver cuántos días lo cumples.";
+  }
+
+  function renderTendencias() {
+    const dias = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toDateString(), k = kcalOf(key);
+      if (k > 0) dias.push({ key, kcal: k });
+    }
+    const avgBox = document.getElementById("avg-box"), list = document.getElementById("hist-list");
+    if (dias.length) {
+      const prom = round(dias.reduce((s,d) => s + d.kcal, 0) / dias.length);
+      avgBox.innerHTML = '<div class="hist-row" style="font-weight:700;"><span>Promedio ' + dias.length + ' día(s)</span><span>' + prom + ' kcal</span></div>';
+      list.innerHTML = dias.map(d => '<div class="hist-row"><span class="hist-date">' + fmtFecha(d.key) + (d.key === TODAY ? " (hoy)" : "") + '</span><span>' + d.kcal + ' kcal</span></div>').join("");
+    } else {
+      avgBox.innerHTML = ""; list.innerHTML = '<p class="hint">Aún no hay días registrados.</p>';
+    }
+    renderBars();
+    imcRefreshWeight();
+    calcImc();
+    const keys = pesoKeysDesc().slice(0, 10);
+    document.getElementById("peso-chart").innerHTML =
+      pesoChartSVG(keys.slice().reverse().map(k => ({ kg: pesos[k] })), 280, 100, true)
+      + (keys.length ? '' : '<p class="hint">Sin registros de peso.</p>');
+    document.getElementById("peso-hist").innerHTML = keys.map(k =>
+      '<div class="hist-row"><span class="hist-date">' + fmtFecha(k) + '</span><span>' + fmtW(pesos[k]) + ' ' + perfil.unidad + '<span class="del" onclick="delPeso(\'' + k + '\')">✕</span></span></div>'
+    ).join("");
+  }
+  window.delPeso = k => { delete pesos[k]; localStorage.setItem("pesos", JSON.stringify(pesos)); render(); };
+
+  // ---------- Render: Ajustes ----------
+  let unitSel = perfil.unidad;
+  function renderAjustes() {
+    document.getElementById("limite").value = perfil.limite || "";
+    MEALS.forEach(m => document.getElementById("pct-" + m.k).value = perfil.pct[m.k]);
+    document.getElementById("unidad").value = perfil.unidad;
+    unitSel = perfil.unidad;
+    document.getElementById("meta-peso").value = perfil.metaPeso ? toUnit(perfil.metaPeso).toFixed(1) : "";
+    renderFoodList();
+  }
+  function renderFoodList() {
+    const cont = document.getElementById("foodlist");
+    if (!foods.length) { cont.innerHTML = '<p class="hint">Tu lista está vacía.</p>'; return; }
+    cont.innerHTML = foods.map((f,i) =>
+      '<div class="hist-row"><span>' + esc(f.name) + ' — ' + f.kcal + ' kcal</span><span class="del" onclick="delFood(' + i + ')">✕</span></div>'
+    ).join("");
+  }
+  window.delFood = i => { foods.splice(i, 1); persistir(); renderFoodList(); };
+
+  document.getElementById("unidad").onchange = e => {
+    const nuevo = e.target.value, campo = document.getElementById("meta-peso"), v = +campo.value;
+    if (v > 0) {
+      const kg = unitSel === "lb" ? v / KG_TO_LB : v;
+      campo.value = (nuevo === "lb" ? kg * KG_TO_LB : kg).toFixed(1);
+    }
+    unitSel = nuevo;
+  };
+  document.getElementById("save-goal").onclick = () => {
+    perfil.limite = Math.max(0, +document.getElementById("limite").value || 0);
+    let suma = 0;
+    MEALS.forEach(m => { const v = Math.max(0, +document.getElementById("pct-" + m.k).value || 0); perfil.pct[m.k] = v; suma += v; });
+    perfil.unidad = document.getElementById("unidad").value;
+    const mp = +document.getElementById("meta-peso").value;
+    perfil.metaPeso = mp > 0 ? Math.round(fromUnit(mp) * 100) / 100 : 0;
+    savePerfil();
+    goal = perfil.limite;
+    render();
+    renderAjustes();
+    document.getElementById("pct-warn").textContent = suma !== 100 ? "Ojo: los porcentajes suman " + suma + "%, no 100%." : "";
+    document.getElementById("save-msg").textContent = "Guardado ✓";
+    setTimeout(() => document.getElementById("save-msg").textContent = "", 2000);
+  };
+  document.getElementById("savefood").onclick = () => {
+    const n = document.getElementById("newname").value.trim(), k = +document.getElementById("newkcal").value;
+    if (n && k > 0) {
+      foods.push({ name: n, kcal: round(k) });
+      persistir(); renderFoodList();
+      document.getElementById("newname").value = ""; document.getElementById("newkcal").value = "";
+    }
+  };
+
+  // ---------- Hojas: agregar alimento, opciones de ítem, peso ----------
+  window.openAdd = meal => {
+    addMeal = meal;
+    const label = MEALS.find(m => m.k === meal).label;
+    const list = foods.length
+      ? foods.map((f,i) => '<button class="food-row" onclick="addFood(' + i + ')"><span>' + esc(f.name) + '</span><span class="fk">' + f.kcal + ' kcal</span></button>').join("")
+      : '<p class="hint">Tu lista está vacía. Usa solo kcal arriba o crea un alimento abajo.</p>';
+    openSheet('<h3>Agregar a ' + label + '</h3>'
+      + '<details class="newfood" style="margin-top:0;"><summary>⚡ Solo kcal (sin guardar en tu lista)</summary>'
+      + '<div class="row2"><input id="qk-name" placeholder="Nombre (opcional)" maxlength="60"><input id="qk-kcal" type="number" inputmode="numeric" placeholder="kcal"></div>'
+      + '<button class="btn-primary" onclick="addQuick()">Agregar</button></details>'
+      + '<label>Cantidad<input id="sheet-qty" type="number" value="1" min="0.1" step="0.5"></label>'
+      + '<div class="food-list">' + list + '</div>'
+      + '<details class="newfood"><summary>+ Nuevo alimento</summary>'
+      + '<div class="row2"><input id="nf-name" placeholder="Nombre"><input id="nf-kcal" type="number" placeholder="kcal"></div>'
+      + '<button class="btn-primary" onclick="saveAndAdd()">Guardar y agregar</button></details>');
+  };
+  window.addFood = i => {
+    const f = foods[i];
+    const qty = +document.getElementById("sheet-qty").value || 1;
+    const name = f.name + (qty !== 1 ? " ×" + qty : "");
+    const kcal = round(f.kcal * qty), meal = addMeal;
+    closeSheet();
+    mutate(l => l[meal].push({ name, kcal }));
+  };
+  // Suma kcal al día sin crear un alimento en tu lista (comidas sueltas, restaurante, una sola vez)
+  window.addQuick = () => {
+    const kInput = document.getElementById("qk-kcal"), k = Math.round(+kInput.value);
+    if (!(k > 0 && k <= 10000)) { kInput.style.borderColor = "var(--danger)"; return; }
+    const name = document.getElementById("qk-name").value.trim().slice(0, 60) || "Kcal rápidas";
+    const meal = addMeal;
+    closeSheet();
+    mutate(l => l[meal].push({ name, kcal: k }));
+  };
+  window.saveAndAdd = () => {
+    const n = document.getElementById("nf-name").value.trim(), k = +document.getElementById("nf-kcal").value;
+    if (!(n && k > 0)) return;
+    foods.push({ name: n, kcal: round(k) });
+    persistir(); renderFoodList();
+    window.addFood(foods.length - 1);
+  };
+  window.openItem = (meal, i) => {
+    const it = viewLog(selectedDate)[meal][i];
+    openSheet('<h3>' + esc(it.name) + '</h3>'
+      + '<label style="margin-top:0;">Kcal<input id="it-kcal" type="number" value="' + it.kcal + '" min="1"></label>'
+      + '<button class="btn-primary" onclick="saveItem(\'' + meal + '\',' + i + ')">Guardar</button>'
+      + '<button class="btn-danger" onclick="delItem(\'' + meal + '\',' + i + ')">Eliminar</button>');
+  };
+  window.saveItem = (meal, i) => {
+    const n = +document.getElementById("it-kcal").value;
+    if (!(n > 0)) return;
+    closeSheet();
+    mutate(l => { l[meal][i].kcal = round(n); });
+  };
+  window.delItem = (meal, i) => { closeSheet(); mutate(l => { l[meal].splice(i, 1); }); };
+
+  window.openPeso = () => {
+    const cur = pesos[selectedDate];
+    openSheet('<h3>Registrar peso</h3><p class="hint" style="margin:0;">' + (selectedDate === TODAY ? "Hoy" : fmtFecha(selectedDate)) + '</p>'
+      + '<label>Peso (' + perfil.unidad + ')<input id="pw" type="number" step="0.1" value="' + (cur ? toUnit(cur).toFixed(1) : "") + '"></label>'
+      + '<button class="btn-primary" onclick="savePeso()">Guardar</button>');
+  };
+  window.savePeso = () => {
+    const v = +document.getElementById("pw").value;
+    if (!(v > 0)) return;
+    pesos[selectedDate] = Math.round(fromUnit(v) * 100) / 100;
+    localStorage.setItem("pesos", JSON.stringify(pesos));
+    closeSheet(); render();
+  };
+
+  // ---------- Calculadora de IMC y gasto calórico (solo métrico) ----------
+  let imcWeightTouched = false;
+  const $id = id => document.getElementById(id);
+  const latestWeightKg = () => { const k = pesoKeysDesc(); return k.length ? pesos[k[0]] : 0; };
+
+  function imcInit() {
+    $id("imc-sex").value = perfil.sexo;
+    $id("imc-age").value = perfil.edad || "";
+    $id("imc-act").value = perfil.actividad;
+    $id("imc-cm").value = perfil.alturaCm ? Math.round(perfil.alturaCm) : "";
+    const kg = latestWeightKg();
+    $id("imc-kg").value = kg ? kg.toFixed(1) : "";
+    calcImc();
+  }
+  function imcRefreshWeight() {
+    if (imcWeightTouched) return;
+    const kg = latestWeightKg();
+    if (kg) $id("imc-kg").value = kg.toFixed(1);
+  }
+  function imcOnProfile() {
+    const cm = +$id("imc-cm").value, age = +$id("imc-age").value;
+    if (cm >= 100 && cm <= 250) perfil.alturaCm = Math.round(cm * 10) / 10;
+    perfil.sexo = $id("imc-sex").value;
+    perfil.edad = age >= 1 && age <= 120 ? Math.round(age) : 0;
+    perfil.actividad = $id("imc-act").value;
+    savePerfil();
+    calcImc();
+  }
+  function gaugeSVG(bmi) {
+    const W = 300, y = 18, h = 10;
+    const X = v => 8 + ((Math.max(15, Math.min(40, v)) - 15) / 25) * (W - 16);
+    const segs = [[15, 18.5, "var(--blue)"], [18.5, 25, "var(--good)"], [25, 30, "var(--warn)"], [30, 40, "var(--danger)"]];
+    let s = '<svg viewBox="0 0 ' + W + ' 46" style="width:100%;height:auto;display:block;margin-top:10px">';
+    segs.forEach(sg => { s += '<rect x="' + X(sg[0]).toFixed(1) + '" y="' + y + '" width="' + (X(sg[1]) - X(sg[0]) - 2).toFixed(1) + '" height="' + h + '" rx="5" opacity=".9" style="fill:' + sg[2] + '"/>'; });
+    [18.5, 25, 30].forEach(t => { s += '<text x="' + (X(t) - 1).toFixed(1) + '" y="44" text-anchor="middle" font-size="10" style="fill:var(--text-3)">' + t + '</text>'; });
+    s += '<circle cx="' + X(bmi).toFixed(1) + '" cy="' + (y + h / 2) + '" r="8" stroke-width="3" style="fill:var(--surface);stroke:var(--text)"/></svg>';
+    return s;
+  }
+  // Valor crítico t de Student (95 %, dos colas). Con pocos pesos el margen debe ser mucho mayor que "±2 errores estándar".
+  function tCrit(df) {
+    const T = { 1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228, 12: 2.179, 15: 2.131, 20: 2.086, 25: 2.060, 30: 2.042 };
+    if (df >= 30) return 2.0;
+    let k = 1; for (const x of Object.keys(T).map(Number)) if (x <= df) k = x;
+    return T[k];
+  }
+  // Gasto medido con tus propios datos:
+  //   TDEE = promedio de kcal registradas − (tendencia de peso en kg/día × 7700)
+  // Usa regresión lineal sobre los pesos de los últimos 28 días (para no depender de un solo día con agua de más).
+  function measuredTdee() {
+    const WINDOW = 28, KCAL_PER_KG = 7700, DAY = 86400000;
+    const today0 = new Date(); today0.setHours(0,0,0,0);
+    const pts = Object.keys(pesos)
+      .map(k => { const d = new Date(k); d.setHours(0,0,0,0); return { x: Math.round((d - today0) / DAY), y: pesos[k] }; })
+      .filter(pt => pt.x >= -WINDOW && pt.x <= 0)
+      .sort((a, b) => a.x - b.x);
+    const nW = pts.length;
+    if (nW < 4) return { ok: false, why: "pesos", nW };
+    const span = pts[nW - 1].x - pts[0].x;
+    if (span < 14) return { ok: false, why: "span", nW, span };
+
+    // comida registrada entre el primer y el último peso (sin contar hoy, que está incompleto)
+    let logged = 0, sum = 0, S = 0;
+    for (let x = pts[0].x; x <= Math.min(pts[nW - 1].x, -1); x++) {
+      S++;
+      const d = new Date(today0); d.setDate(d.getDate() + x);
+      const k = kcalOf(d.toDateString());
+      if (k > 0) { logged++; sum += k; }
+    }
+    if (!S || logged / S < 0.8) return { ok: false, why: "food", nW, span, logged, S };
+
+    const avg = sum / logged;
+    const mx = pts.reduce((a, pt) => a + pt.x, 0) / nW, my = pts.reduce((a, pt) => a + pt.y, 0) / nW;
+    let sxx = 0, sxy = 0;
+    pts.forEach(pt => { sxx += (pt.x - mx) ** 2; sxy += (pt.x - mx) * (pt.y - my); });
+    const slope = sxy / sxx;                                   // kg por día
+    let sse = 0;
+    pts.forEach(pt => { const e = pt.y - (my + slope * (pt.x - mx)); sse += e * e; });
+    const se = nW > 2 ? Math.sqrt((sse / (nW - 2)) / sxx) : 0; // error estándar de la pendiente
+    const tdee = avg - slope * KCAL_PER_KG;
+    if (tdee < 1000 || tdee > 6000) return { ok: false, why: "raro", raw: round(tdee) };
+    const margin = Math.max(50, Math.ceil(tCrit(nW - 2) * se * KCAL_PER_KG / 10) * 10);  // ~95 %, mínimo ±50
+    // "precisa" = su margen es menor que el ±10 % de la fórmula; si no, todavía no mejora a la fórmula
+    return { ok: true, precise: margin <= 0.10 * tdee, tdee, margin, slope, span, avg, nW, logged, S, changeKg: slope * span };
+  }
+  function calcImc() {
+    const out = $id("imc-result");
+    const kg = +$id("imc-kg").value, cm = +$id("imc-cm").value, age = +$id("imc-age").value;
+    const sex = $id("imc-sex").value, act = +$id("imc-act").value;
+    const valid = kg >= 20 && kg <= 500 && cm >= 100 && cm <= 250;
+    const m = cm / 100, bmi = kg / (m * m);
+    let html = "";
+
+    // --- IMC ---
+    if (!valid) {
+      html += '<p class="hint" style="margin-top:12px;">Completa tu peso y tu altura para ver el resultado.</p>';
+    } else if (age >= 1 && age < 18) {
+      html += '<div class="imc-top"><span class="imc-num">' + bmi.toFixed(1) + '</span><span class="imc-cat" style="color:var(--text-2)">IMC</span></div>'
+        + '<p class="hint">Para menores de 18 años el IMC se interpreta con percentiles de edad y sexo, no con las categorías de adultos. Consulta a tu médico.</p>';
+    } else {
+      const cat = bmi < 18.5 ? { t: "Bajo peso", c: "var(--blue)" }
+                : bmi < 25   ? { t: "Peso normal", c: "var(--good)" }
+                : bmi < 30   ? { t: "Sobrepeso", c: "var(--warn)" }
+                :              { t: "Obesidad", c: "var(--danger)" };
+      html += '<div class="imc-top"><span class="imc-num">' + bmi.toFixed(1) + '</span><span class="imc-cat" style="color:' + cat.c + '">' + cat.t + '</span></div>'
+        + gaugeSVG(bmi)
+        + '<p class="hint" style="margin-top:8px;">Con IMC normal (18.5–24.9) a tu altura, tu peso estaría entre ' + (18.5 * m * m).toFixed(1) + ' y ' + (24.9 * m * m).toFixed(1) + ' kg.</p>';
+    }
+
+    // --- Gasto calórico: medido con tus datos + estimación de fórmula como rango ---
+    const mt = measuredTdee();
+    html += '<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;"><p class="card-title" style="margin:0 0 6px;">Gasto calórico</p>';
+    let ref = null;   // referencia para comparar con tu límite: {mid, lo, hi, medido}
+    let bmrVal = 0;
+
+    if (mt.ok && mt.precise) {
+      html += '<p class="hint" style="margin:0;">Medido con tus datos</p>'
+        + '<div class="imc-top" style="margin-top:2px;"><span class="imc-num" style="font-size:34px;">' + round(mt.tdee) + '</span>'
+        + '<span class="imc-cat" style="font-size:15px;color:var(--text-2);">kcal ± ' + mt.margin + '</span></div>'
+        + '<p class="hint">Tendencia de peso: ' + (mt.changeKg >= 0 ? "+" : "") + mt.changeKg.toFixed(1) + ' kg en ' + mt.span + ' días · promedio registrado ' + round(mt.avg) + ' kcal/día.</p>';
+      ref = { mid: mt.tdee, lo: mt.tdee - mt.margin, hi: mt.tdee + mt.margin, medido: true };
+    } else if (mt.ok) {
+      html += '<p class="hint" style="margin:0 0 8px;">Medición con tus datos (provisional): ' + round(mt.tdee) + ' kcal ± ' + mt.margin
+        + '. Todavía es menos precisa que la fórmula, así que no la uso como referencia. Para afinarla, pésate casi todos los días a la misma hora durante 4 semanas y registra todo lo que comes.</p>';
+    } else {
+      const why = mt.why === "pesos" ? "faltan pesos: tienes " + mt.nW + " en los últimos 28 días y necesitas al menos 4 (con uno por semana basta)."
+        : mt.why === "span" ? "tus pesos cubren solo " + mt.span + " días y necesitas al menos 14 (lo ideal es 28)."
+        : mt.why === "food" ? "registraste comida en " + mt.logged + " de " + mt.S + " días y necesitas al menos el 80 % (lo ideal es todos)."
+        : "el resultado salió fuera de lo razonable (" + mt.raw + " kcal). Revisa si faltan comidas o si algún peso está mal anotado.";
+      html += '<p class="hint" style="margin:0 0 8px;">Gasto medido con tus datos: aún no disponible, ' + why + '</p>';
+    }
+
+    if (!valid) {
+      html += '<p class="hint">Completa peso y altura para ver la estimación inicial por fórmula.</p>';
+    } else if (!sex || !(age >= 18 && age <= 100)) {
+      html += '<p class="hint">Completa sexo y edad (18 o más) para ver la estimación inicial por fórmula.</p>';
+    } else {
+      const bmr = 10 * kg + 6.25 * cm - 5 * age + (sex === "m" ? 5 : -161), tdee = bmr * act;
+      bmrVal = bmr;
+      html += '<div class="hist-row"><span class="hist-date">Metabolismo basal (fórmula)</span><b>' + round(bmr) + ' kcal</b></div>'
+        + '<div class="hist-row"><span class="hist-date">Estimación inicial del gasto</span><b>' + round(tdee) + ' kcal</b></div>'
+        + '<div class="hist-row"><span class="hist-date">Rango probable (±10 %)</span><b>' + round(tdee * 0.9) + ' a ' + round(tdee * 1.1) + '</b></div>';
+      if (!ref) ref = { mid: tdee, lo: tdee * 0.9, hi: tdee * 1.1, medido: false };
+    }
+
+    if (ref && goal) {
+      const dMid = ref.mid - goal, dLo = ref.lo - goal, dHi = ref.hi - goal;
+      html += '<p class="hint" style="margin-top:8px;">Frente a tu límite de ' + goal + ' kcal, '
+        + (ref.medido ? 'con tu gasto medido' : 'con la estimación por fórmula') + ': '
+        + (dMid >= 0 ? "déficit" : "superávit") + ' de unas ' + Math.abs(round(dMid)) + ' kcal al día '
+        + '(rango de ' + round(dLo) + ' a ' + round(dHi) + '; un valor negativo es superávit).</p>';
+    }
+    html += (mt.ok && mt.precise)
+      ? '<p class="hint">Se calcula con tus kcal registradas y la tendencia de tu peso (7,700 kcal por kg). Supone que registras todo lo que comes. Si ganas músculo mientras pierdes grasa, el peso engaña. El ± solo refleja el ruido de tu peso, no los errores al registrar.</p>'
+      : '<p class="hint">La fórmula (Mifflin-St Jeor) queda dentro de ±10 % en unas 8 de cada 10 personas; a las demás les falla más. Con 2 a 4 semanas de pesos y comidas registrados, la app calcula tu gasto real.</p>';
+    // --- Límite sugerido para el déficit (solo adultos, con piso de seguridad) ---
+    if (valid && sex && age >= 18 && age <= 100 && ref) {
+      html += '<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;"><p class="card-title" style="margin:0 0 4px;">Límite sugerido para el déficit</p>';
+      if (bmi < 18.5) {
+        html += '<p class="hint">Con tu IMC (bajo peso) no se recomienda un déficit calórico. Consulta a tu médico o nutriólogo.</p>';
+      } else {
+        const piso = Math.max(sex === "f" ? 1200 : 1500, round(bmrVal));
+        const paces = [["Suave", 250], ["Moderado", 500], ["Más rápido", 750]].map(pc => {
+          const t = Math.round((ref.mid - pc[1]) / 10) * 10, kcal = Math.max(t, piso), def = ref.mid - kcal;
+          return { name: pc[0], kcal, def, limitado: t < piso, perWeek: def * 7 / 7700 };
+        });
+        const rec = paces[1];
+        if (rec.def <= 0) {
+          html += '<p class="hint">Con tu gasto estimado (' + round(ref.mid) + ' kcal) no hay margen seguro para un déficit: el piso de seguridad (' + piso + ' kcal) ya es casi tu gasto. Habla con tu médico o nutriólogo.</p>';
+        } else {
+          html += '<div class="imc-top" style="margin-top:2px;"><span class="imc-num" style="font-size:34px;">' + rec.kcal + '</span>'
+            + '<span class="imc-cat" style="font-size:15px;color:var(--text-2);">kcal al día · ' + (rec.limitado ? 'mínimo seguro' : 'déficit moderado') + '</span></div>'
+            + '<p class="hint">≈ ' + Math.max(0, rec.perWeek).toFixed(1) + ' kg por semana.</p>';
+          paces.forEach(pc => {
+            html += '<div class="hist-row"><span class="hist-date">' + pc.name + ' (−' + Math.max(0, round(pc.def)) + ')</span><b>'
+              + (pc.def > 0 ? pc.kcal + ' kcal · ≈' + pc.perWeek.toFixed(1) + ' kg/sem' : 'sin margen') + (pc.limitado && pc.def > 0 ? ' (mínimo)' : '') + '</b></div>';
+          });
+        }
+        html += '<p class="hint" style="margin-top:8px;">Sale de tu gasto ' + (ref.medido ? 'medido' : 'estimado por fórmula') + ' (' + round(ref.mid) + ' kcal) menos el déficit, y arrastra su incertidumbre de unos ±' + round(ref.mid - ref.lo) + ' kcal. Úsalo como punto de partida y ajústalo con tu peso: si en 2 o 3 semanas bajas mucho menos de lo esperado, réstale unas 100 a 150 kcal; si bajas más de 1 kg por semana de forma sostenida, es demasiado, súbelo.</p>'
+          + '<p class="hint">El mínimo seguro es el mayor entre ' + (sex === "f" ? "1,200 (mujeres)" : "1,500 (hombres)") + ' y tu metabolismo basal estimado (' + piso + ' kcal). Es una referencia general de sitios de salud, no una indicación médica. Tu nutriólogo manda.</p>';
+      }
+      html += '</div>';
+    }
+    out.innerHTML = html + '</div>';
+  }
+  $id("imc-kg").addEventListener("input", () => { imcWeightTouched = true; calcImc(); });
+  ["imc-cm", "imc-age"].forEach(id => $id(id).addEventListener("input", imcOnProfile));
+  ["imc-sex", "imc-act"].forEach(id => $id(id).addEventListener("change", imcOnProfile));
+
+  // ---------- Ayuno ----------
+  const HOUR = 3600000;
+  let ayuno = (() => {
+    const a = JSON.parse(localStorage.getItem("ayuno")) || {};
+    return {
+      plan: Math.min(18, Math.max(12, Math.round(+a.plan || 14))),
+      ack: !!a.ack,
+      current: a.current && +a.current.start ? { start: +a.current.start } : null,
+      history: (Array.isArray(a.history) ? a.history : [])
+        .filter(h => h && +h.start && +h.end && +h.end > +h.start)
+        .map(h => ({ start: +h.start, end: +h.end, goalH: +h.goalH || 16 })).slice(-90),
+    };
+  })();
+  let ayMsg = "";
+  const saveAyuno = () => localStorage.setItem("ayuno", JSON.stringify(ayuno));
+  const fmtHM = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0"); };
+  const fmtDur = ms => { const m = Math.max(0, Math.round(ms / 60000)); return Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0") + " min"; };
+  const fmtClock = ms => new Date(ms).toLocaleString("es", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  const toLocalInput = ms => { const d = new Date(ms); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+  // Bloqueos de seguridad con los datos que ya tiene la app
+  function ayBlock() {
+    if (perfil.edad > 0 && perfil.edad < 18) return "Eres menor de 18 años: el ayuno no es recomendable a tu edad. Habla con tu médico.";
+    const kg = latestWeightKg(), cm = perfil.alturaCm;
+    if (kg >= 20 && cm >= 100 && kg / ((cm / 100) ** 2) < 18.5) return "Tu IMC indica bajo peso: no se recomienda ayunar. Consulta a tu médico o nutriólogo.";
+    return "";
+  }
+  function ayPlanText(h) {
+    if (h > 16) return "Una ventana de comida de menos de 8 h tiene menos respaldo y hace difícil cubrir tu proteína. No se recomienda sin guía de tu nutriólogo.";
+    if (h === 12) return "Suave: casi un ayuno nocturno normal. Buen punto de partida.";
+    if (h === 14) return "Equilibrado y fácil de sostener. Sugerido para empezar.";
+    if (h === 16) return "El más estudiado. Si entrenas fuerza, reparte bien tu proteína dentro de la ventana.";
+    return "Plan intermedio.";
+  }
+  function ayStats() {
+    const since = Date.now() - 14 * 24 * HOUR;
+    const recent = ayuno.history.filter(h => h.end >= since);
+    const durs = recent.map(h => (h.end - h.start) / HOUR);
+    const met = recent.filter(h => (h.end - h.start) / HOUR >= h.goalH).length;
+    let streak = 0;
+    for (let i = ayuno.history.length - 1; i >= 0; i--) { const h = ayuno.history[i]; if ((h.end - h.start) / HOUR >= h.goalH) streak++; else break; }
+    return { n: recent.length, avg: recent.length ? durs.reduce((a, b) => a + b, 0) / recent.length : 0, met, streak };
+  }
+  function ayBarsSVG() {
+    const list = ayuno.history.slice(-10);
+    const W = 300, H = 120, PL = 6, PR = 6, PT = 12, PB = 20, plotH = H - PT - PB;
+    const top = Math.max(ayuno.plan * 1.3, ...list.map(h => (h.end - h.start) / HOUR * 1.05), 8);
+    const slot = (W - PL - PR) / 10, bw = slot * 0.62;
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block">';
+    list.forEach((h, i) => {
+      const dur = (h.end - h.start) / HOUR, ht = Math.max(3, dur / top * plotH), bx = PL + (10 - list.length + i) * slot + (slot - bw) / 2;
+      svg += '<rect x="' + bx.toFixed(1) + '" y="' + (H - PB - ht).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + ht.toFixed(1) + '" rx="3" style="fill:' + (dur >= h.goalH ? "var(--good)" : "var(--blue)") + '"/>'
+        + '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="8" style="fill:var(--text-3)">' + new Date(h.end).getDate() + '</text>';
+    });
+    const y = H - PB - ayuno.plan / top * plotH;
+    svg += '<line x1="' + PL + '" x2="' + (W - PR) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke-width="1.5" stroke-dasharray="4 4" style="stroke:var(--text-2)"/>'
+      + '<text x="' + PL + '" y="' + (y - 3).toFixed(1) + '" font-size="9" style="fill:var(--text-2)">meta ' + ayuno.plan + ' h</text></svg>';
+    return svg;
+  }
+
+  function renderAyuno() {
+    const now = Date.now(), block = ayBlock(), cur = ayuno.current, goalMs = ayuno.plan * HOUR;
+    const canStart = !block && ayuno.ack;
+
+    // --- Puerta de seguridad ---
+    $id("ay-gate").innerHTML = block
+      ? '<div class="notice bad"><b>No disponible por ahora.</b><p>' + block + '</p></div>'
+      : !ayuno.ack
+        ? '<div class="notice"><b>Antes de ayunar</b><p>No ayunes, o consulta antes a tu médico, si estás embarazada o en lactancia, tienes diabetes y tomas medicación, has tenido un trastorno de la conducta alimentaria, eres menor de 18 años, tienes bajo peso o una enfermedad crónica. Si ya sigues un déficit con tu nutriólogo, coméntale que quieres ayunar.</p><button class="btn-primary" onclick="ayAck()">Ninguna aplica a mí</button></div>'
+        : "";
+
+    // --- Temporizador ---
+    let main = "";
+    if (cur) {
+      const el = now - cur.start, done = el >= goalMs, endGoal = cur.start + goalMs;
+      main = '<svg viewBox="0 0 160 160" style="width:100%;max-width:200px;display:block;margin:0 auto">'
+        + ring(Math.min(100, el / goalMs * 100), 64, 13, 160, done ? "var(--good)" : "var(--blue)")
+        + '<text x="80" y="70" text-anchor="middle" font-size="12" style="fill:' + (done ? "var(--good)" : "var(--text-2)") + '">' + (done ? "Meta cumplida ✓" : "Ayunando") + '</text>'
+        + '<text x="80" y="100" text-anchor="middle" font-size="30" font-weight="800" style="fill:var(--text)">' + fmtHM(el) + '</text>'
+        + '<text x="80" y="118" text-anchor="middle" font-size="12" style="fill:var(--text-2)">de ' + ayuno.plan + ' h</text></svg>'
+        + '<p class="goal-line">Inició ' + fmtClock(cur.start) + '</p>'
+        + '<p class="goal-line" style="margin-top:2px;">' + (done ? "Cumpliste tu meta " + fmtClock(endGoal) : "Tu meta se cumple " + fmtClock(endGoal) + " (faltan " + fmtDur(endGoal - now) + ")") + '</p>'
+        + (el > 24 * HOUR ? '<div class="notice" style="margin:12px 0 0;text-align:left;"><b>Llevas más de 24 horas.</b><p>Si no era un ayuno planeado con tu médico, termínalo: los ayunos largos necesitan supervisión.</p></div>' : '')
+        + '<button class="btn-primary" onclick="ayEnd()">Terminar ayuno</button>'
+        + '<button class="btn-soft" style="width:100%;margin-top:8px;" onclick="ayOpenStart()">Ajustar hora de inicio</button>';
+    } else {
+      const last = ayuno.history.length ? ayuno.history[ayuno.history.length - 1].end : 0, since = now - last, winMs = (24 - ayuno.plan) * HOUR;
+      main = '<svg viewBox="0 0 160 160" style="width:100%;max-width:200px;display:block;margin:0 auto">' + ring(0, 64, 13, 160)
+        + '<text x="80" y="70" text-anchor="middle" font-size="12" style="fill:var(--text-2)">Ventana de comida</text>'
+        + '<text x="80" y="100" text-anchor="middle" font-size="30" font-weight="800" style="fill:var(--text)">' + (last ? fmtHM(since) : "—") + '</text>'
+        + '<text x="80" y="118" text-anchor="middle" font-size="12" style="fill:var(--text-2)">' + (last ? (since < winMs ? "abierta" : "cerrada") : "sin ayunos") + '</text></svg>'
+        + '<p class="goal-line">' + (last
+            ? (since < winMs ? "Te quedan " + fmtDur(winMs - since) + " de ventana de comida (" + (24 - ayuno.plan) + " h)." : "Tu ventana de comida (" + (24 - ayuno.plan) + " h) ya cerró: puedes empezar tu ayuno.")
+            : "Cuando termines de comer, inicia tu ayuno.") + '</p>'
+        + '<button class="btn-primary" onclick="ayStart()"' + (canStart ? "" : " disabled") + '>Iniciar ayuno ahora</button>'
+        + '<button class="btn-soft" style="width:100%;margin-top:8px;" onclick="ayOpenStart()"' + (canStart ? "" : " disabled") + '>Empecé antes…</button>';
+    }
+    if (ayMsg) main += '<p class="hint" style="margin-top:12px;">' + ayMsg + '</p>';
+    $id("ay-main").innerHTML = main;
+
+    // --- Plan ---
+    const std = [12, 14, 16].includes(ayuno.plan);
+    const chip = (h, label) => '<button class="chip' + (ayuno.plan === h ? ' active' : '') + '" onclick="aySetPlan(' + h + ')">' + label + '</button>';
+    $id("ay-plan").innerHTML = '<p class="card-title">Tu plan <span style="font-weight:400;color:var(--text-3);">(horas de ayuno : horas de comida)</span></p><div class="chips">'
+      + chip(12, "12:12") + chip(14, "14:10") + chip(16, "16:8")
+      + '<button class="chip' + (std ? '' : ' active') + '" onclick="ayOpenPlan()">' + (std ? "Otro" : ayuno.plan + ":" + (24 - ayuno.plan)) + '</button></div>'
+      + '<p class="hint" style="margin-top:10px;">' + ayPlanText(ayuno.plan) + '</p>'
+      + '<p class="hint">Sugerencia: empieza en 14:10 y, si lo toleras bien durante 2 semanas, prueba 16:8. Más de 16 h tiene menos respaldo.</p>';
+
+    // --- Historial ---
+    const st = ayStats();
+    let hist = '<p class="card-title">Historial</p>';
+    if (!ayuno.history.length) {
+      hist += '<p class="hint">Aún no has completado ayunos. Se guardan los que duren al menos 1 hora.</p>';
+    } else {
+      hist += '<div class="hist-row"><span class="hist-date">Promedio (14 días)</span><b>' + st.avg.toFixed(1) + ' h</b></div>'
+        + '<div class="hist-row"><span class="hist-date">Metas cumplidas (14 días)</span><b>' + st.met + ' de ' + st.n + '</b></div>'
+        + '<div class="hist-row"><span class="hist-date">Racha de metas</span><b>' + st.streak + ' seguidas</b></div>'
+        + '<div style="margin-top:10px;">' + ayBarsSVG() + '</div><div style="margin-top:6px;">';
+      for (let i = ayuno.history.length - 1, c = 0; i >= 0 && c < 7; i--, c++) {
+        const h = ayuno.history[i], dur = h.end - h.start, met = dur >= h.goalH * HOUR;
+        hist += '<div class="hist-row"><span class="hist-date">' + fmtFecha(new Date(h.end).toDateString()) + '</span><span>' + fmtDur(dur) + ' · meta ' + h.goalH + ' h' + (met ? ' ✓' : '')
+          + '<span class="del" onclick="ayDel(' + i + ')">✕</span></span></div>';
+      }
+      hist += '</div>';
+    }
+    $id("ay-hist").innerHTML = hist;
+  }
+
+  window.ayAck = () => { ayuno.ack = true; saveAyuno(); renderAyuno(); };
+  window.ayStart = ms => {
+    if (ayBlock() || !ayuno.ack || ayuno.current) return;
+    ayuno.current = { start: (typeof ms === "number" && isFinite(ms)) ? ms : Date.now() };
+    ayMsg = ""; saveAyuno(); closeSheet(); renderAyuno();
+  };
+  window.ayEnd = () => {
+    const c = ayuno.current; if (!c) return;
+    const end = Date.now(), dur = end - c.start;
+    if (dur < HOUR) {
+      ayMsg = "Ayuno cancelado: duró menos de 1 hora y no se guardó.";
+    } else {
+      ayuno.history.push({ start: c.start, end, goalH: ayuno.plan });
+      ayuno.history = ayuno.history.slice(-90);
+      ayMsg = dur >= ayuno.plan * HOUR
+        ? "Ayuno terminado: " + fmtDur(dur) + ". Rompe el ayuno con una comida que tenga proteína."
+        : "Ayuno terminado: " + fmtDur(dur) + ". No llegaste a tu meta de " + ayuno.plan + " h, y está bien: importa la constancia, no un día perfecto.";
+    }
+    ayuno.current = null; saveAyuno(); renderAyuno();
+  };
+  window.aySetPlan = h => { ayuno.plan = Math.min(18, Math.max(12, Math.round(h))); saveAyuno(); renderAyuno(); };
+  window.ayOpenPlan = () => {
+    openSheet('<h3>Otro plan</h3><label style="margin-top:0;">Horas de ayuno (12 a 18)<input id="ay-plan-h" type="number" min="12" max="18" step="1" value="' + ayuno.plan + '"></label>'
+      + '<p class="hint">Más de 16 h deja una ventana de comida de menos de 8 h, con menos respaldo y más difícil de cuadrar con tu proteína.</p>'
+      + '<button class="btn-primary" onclick="ayApplyPlan()">Guardar plan</button>');
+  };
+  window.ayApplyPlan = () => {
+    const v = Math.round(+$id("ay-plan-h").value);
+    if (!(v >= 12 && v <= 18)) { $id("ay-plan-h").style.borderColor = "var(--danger)"; return; }
+    closeSheet(); window.aySetPlan(v);
+  };
+  window.ayOpenStart = () => {
+    const cur = ayuno.current, now = Date.now();
+    openSheet('<h3>' + (cur ? "Ajustar hora de inicio" : "¿Cuándo empezó tu ayuno?") + '</h3>'
+      + '<p class="hint" style="margin:0;">Pon la hora de tu última comida. Máximo 48 horas atrás.</p>'
+      + '<label>Fecha y hora<input id="ay-start-in" type="datetime-local" value="' + toLocalInput(cur ? cur.start : now) + '" max="' + toLocalInput(now) + '" min="' + toLocalInput(now - 48 * HOUR) + '"></label>'
+      + '<p class="hint" id="ay-start-err" style="color:var(--danger);"></p>'
+      + '<button class="btn-primary" onclick="ayApplyStart()">Guardar</button>');
+  };
+  window.ayApplyStart = () => {
+    const ms = new Date($id("ay-start-in").value).getTime(), now = Date.now(), err = $id("ay-start-err");
+    if (!isFinite(ms)) { err.textContent = "Escribe una fecha y hora válidas."; return; }
+    if (ms > now + 60000) { err.textContent = "La hora no puede estar en el futuro."; return; }
+    if (ms < now - 48 * HOUR) { err.textContent = "No puede ser de hace más de 48 horas."; return; }
+    if (ayuno.current) { ayuno.current.start = ms; ayMsg = ""; saveAyuno(); closeSheet(); renderAyuno(); }
+    else window.ayStart(ms);
+  };
+  window.ayDel = i => { ayuno.history.splice(i, 1); saveAyuno(); renderAyuno(); };
+  setInterval(() => { if (!document.hidden && $id("view-ayuno").classList.contains("active")) renderAyuno(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) renderAyuno(); });
+
+  // ---------- Navegación ----------
+  function showView(name) {
+    ["diario", "ayuno", "tend", "ajustes"].forEach(v => {
+      document.getElementById("view-" + v).classList.toggle("active", v === name);
+      document.getElementById("nav-" + v).classList.toggle("active", v === name);
+    });
+    if (name === "ayuno") renderAyuno();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll(".nav button").forEach(b => b.onclick = () => showView(b.dataset.view));
+
+  // ---------- Respaldo ----------
+  document.getElementById("export").onclick = () => {
+    const data = { foods, historial, pesos, perfil, ayuno, dia: JSON.parse(localStorage.getItem("dia")) };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "respaldo-kcal-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+  };
+  document.getElementById("import-btn").onclick = () => document.getElementById("import-file").click();
+  document.getElementById("import-file").onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const d = JSON.parse(reader.result);
+        if (d.foods) localStorage.setItem("foods", JSON.stringify(d.foods));
+        if (d.historial) localStorage.setItem("historial", JSON.stringify(d.historial));
+        if (d.pesos) localStorage.setItem("pesos", JSON.stringify(d.pesos));
+        if (d.perfil) localStorage.setItem("perfil", JSON.stringify(d.perfil));
+        if (d.dia) localStorage.setItem("dia", JSON.stringify(d.dia));
+        if (d.ayuno) localStorage.setItem("ayuno", JSON.stringify(d.ayuno));
+        alert("Respaldo importado. La app se recargará.");
+        location.reload();
+      } catch { alert("Archivo inválido."); }
+    };
+    reader.readAsText(file);
+  };
+
+  // ---------- Render general ----------
+  function render() {
+    renderWeekStrip();
+    renderBudget();
+    renderMeals();
+    renderPeso();
+    renderTendencias();
+    persistir();
+  }
+
+  // Si la app queda abierta en segundo plano y cambia el día, recarga para no mezclar días
+  function chequearCambioDeDia() { if (!document.hidden && hoyStr() !== TODAY) location.reload(); }
+  document.addEventListener("visibilitychange", chequearCambioDeDia);
+  window.addEventListener("pageshow", chequearCambioDeDia);
+
+  imcInit();
+  renderAyuno();
+  renderAjustes();
+  render();
+</script>
+</body>
+</html>
